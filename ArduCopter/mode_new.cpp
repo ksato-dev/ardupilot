@@ -52,27 +52,30 @@ void ModeNew::run()
     motors->set_desired_spool_state(AP_Motors::DesiredSpoolState::THROTTLE_UNLIMITED);
 
     // run circle controller
-    copter.circle_nav->update();
+    // copter.circle_nav->update();
+
+    // set auto_yaw
+    static float curr_yaw = 0.0;
+    curr_yaw += 3.0;
+    auto_yaw.set_fixed_yaw(curr_yaw, 0.0, 0, false);
+
+    // control xy
+    _pos_target_cm.x += 1.0;
+    _pos_target_cm.y += 1.0;
+    pos_control->set_xy_target(_pos_target_cm.x, _pos_target_cm.y);
+    pos_control->update_xy_controller();
+
+    // control z
+    // pos_control->set_alt_target_to_current_alt();
+    pos_control->set_alt_target(300.0);
+    pos_control->update_z_controller();
 
     // call attitude controller
-    if (pilot_yaw_override) {
-        attitude_control->input_euler_angle_roll_pitch_euler_rate_yaw(copter.circle_nav->get_roll(),
-                                                                      copter.circle_nav->get_pitch(),
-                                                                      target_yaw_rate);
-    } else {
-        attitude_control->input_euler_angle_roll_pitch_yaw(copter.circle_nav->get_roll(),
-                                                           copter.circle_nav->get_pitch(),
-                                                           copter.circle_nav->get_yaw(), true);
-    }
+    attitude_control->input_euler_angle_roll_pitch_yaw(pos_control->get_roll(),
+                                                       pos_control->get_pitch(),
+                                                       auto_yaw.yaw(), true);
 
-    // update altitude target and call position controller
-    // protects heli's from inflight motor interlock disable
-    if (motors->get_desired_spool_state() == AP_Motors::DesiredSpoolState::GROUND_IDLE && !copter.ap.land_complete) {
-        pos_control->set_alt_target_from_climb_rate(-abs(g.land_speed), G_Dt, false);
-    } else {
-        pos_control->set_alt_target_from_climb_rate(target_climb_rate, G_Dt, false);
-    }
-    pos_control->update_z_controller();
+    // pos_control->set_desired_velocity_z(inertial_nav.get_velocity_z());
 }
 
 uint32_t ModeNew::wp_distance() const
