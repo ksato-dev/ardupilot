@@ -1413,6 +1413,10 @@ protected:
     int32_t wp_bearing() const override;
 
 private:
+    void update_xyz_counter();
+
+    uint32_t _xyz_counter;
+    Vector3f    _center;        // center of circle in cm from home
 
     // Circle
     bool pilot_yaw_override = false; // true if pilot is overriding yaw
