@@ -206,6 +206,8 @@ const float xyz_table[][3] = {  // [m]
     {0.497185794871202, 0.867644100641669, 24.9},
     {0.408082061813392, 0.912945250727628, 25}};
 
+static uint32_t count_val = 1;
+
 bool ModeNew::init(bool ignore_checks)
 {
     pilot_yaw_override = false;
@@ -219,17 +221,15 @@ bool ModeNew::init(bool ignore_checks)
     pos_control->set_max_accel_xy(wp_nav->get_wp_acceleration());
     pos_control->set_max_speed_z(-get_pilot_speed_dn(), g.pilot_speed_up);
     pos_control->set_max_accel_z(g.pilot_accel_z);
-    pos_control->set_desired_accel_xy(0.0f,0.0f);
-    pos_control->set_desired_velocity_xy(0.0f,0.0f);
 
     // get stopping point
     const Vector3f& stopping_point = pos_control->get_pos_target();
 
-    // set circle center to circle_radius ahead of stopping point
-    const float radius = 100.0; 
-    _center.x = stopping_point.x + radius * copter.ahrs.cos_yaw();
-    _center.y = stopping_point.y + radius * copter.ahrs.sin_yaw();
+    _center.x = stopping_point.x;
+    _center.y = stopping_point.y;
     _center.z = stopping_point.z;
+
+    hal.console->printf("x:%f, y:%f, z:%f\n",_center.x, _center.y, _center.z);
 
     // initialise circle controller including setting the circle center based on vehicle speed
     // copter.circle_nav->init();
@@ -243,9 +243,6 @@ bool ModeNew::init(bool ignore_checks)
 void ModeNew::run()
 {
     // initialize speeds and accelerations
-    pos_control->set_max_speed_xy(wp_nav->get_default_speed_xy());
-    pos_control->set_max_accel_xy(wp_nav->get_wp_acceleration());
-    pos_control->set_max_speed_z(-get_pilot_speed_dn(), g.pilot_speed_up);
     pos_control->set_max_accel_z(g.pilot_accel_z);
 
     // if not armed set throttle to zero and exit immediately
@@ -262,16 +259,28 @@ void ModeNew::run()
 //    curr_yaw += 3.0;
 //    auto_yaw.set_fixed_yaw(curr_yaw, 0.0, 0, false);
 
+    this->_pos_target_cm.x = xyz_table[this->_xyz_counter][0] * 100.0 + _center.x;
+    this->_pos_target_cm.y = xyz_table[this->_xyz_counter][1] * 100.0 + _center.y;
+    this->_pos_target_cm.z = 10.0 * xyz_table[this->_xyz_counter][2] * 100.0;
+
     // control xy
-    this->_pos_target_cm.x = xyz_table[this->_xyz_counter][0] * 100.0;
-    this->_pos_target_cm.y = xyz_table[this->_xyz_counter][1] * 100.0;
-    pos_control->set_xy_target(_pos_target_cm.x, _pos_target_cm.y);
+    pos_control->set_xy_target(this->_pos_target_cm.x, this->_pos_target_cm.y);
+    float next_yaw = get_bearing_cd(copter.inertial_nav.get_position(), this->_pos_target_cm);
     pos_control->update_xy_controller();
 
     // control z
-    this->_pos_target_cm.z = xyz_table[this->_xyz_counter][2] * 100.0;
+    // pos_control->set_alt_target_to_current_alt();
+    pos_control->set_alt_target(this->_pos_target_cm.z);
+    // call attitude controller
+    attitude_control->input_euler_angle_roll_pitch_yaw(pos_control->get_roll(),
+                                                       pos_control->get_pitch(),
+                                                       next_yaw, true);
+
+    // pos_control->set_alt_target_to_current_alt();
     pos_control->set_alt_target(this->_pos_target_cm.z);
     pos_control->update_z_controller();
+
+    // attitude_control->input_euler_angle_roll_pitch_yaw(wp_nav->get_roll(), wp_nav->get_pitch(), auto_yaw.yaw(), true);
 
     this->update_xyz_counter();
 }
@@ -287,17 +296,17 @@ int32_t ModeNew::wp_bearing() const
 }
 
 void ModeNew::update_xyz_counter() {
-    uint32_t val = 1;
+
+    hal.console->printf("count:%d\n", this->_xyz_counter);
 
     uint32_t num_xyz = (sizeof(xyz_table) / sizeof(xyz_table[0][0])) / 3;
     if (this->_xyz_counter >= num_xyz - 1)  // warning: don't refer to out of array's range.
-        val = -1;
+        count_val = -1;
     else if (this->_xyz_counter == 0) {
-        val = 1;
+        count_val = 1;
     }
-    else 
 
-    this->_xyz_counter += val;
+    this->_xyz_counter += count_val;
     return;
 };
 #endif
