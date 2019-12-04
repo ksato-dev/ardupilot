@@ -3,7 +3,7 @@
 
 #if MODE_NEW_ENABLED == ENABLED
 
-#if 1
+#if 0
 const float xyz_table[][3] = {
     {0.0, 0.0, 5},
     {5.0, 0.0, 5.5},
@@ -260,6 +260,13 @@ bool ModeNew::init(bool ignore_checks)
     this->_pos_target_cm.z = xyz_table[0][2] * 100.0 + _center.z;
     this->_pre_pos_target_cm = _pos_target_cm;
 
+    pos_control->update_z_controller();
+    pos_control->update_xy_controller();
+
+    float next_yaw = get_bearing_cd(inertial_nav.get_position(), this->_pos_target_cm);
+    attitude_control->input_euler_angle_roll_pitch_yaw(pos_control->get_roll(),
+                                                       pos_control->get_pitch(),
+                                                       next_yaw, true);
     return true;
 }
 
@@ -295,18 +302,13 @@ void ModeNew::run()
     // set motors to full range
     motors->set_desired_spool_state(AP_Motors::DesiredSpoolState::THROTTLE_UNLIMITED);
 
-    // set auto_yaw
-//    static float curr_yaw = 0.0;
-//    curr_yaw += 3.0;
-//    auto_yaw.set_fixed_yaw(curr_yaw, 0.0, 0, false);
-
     this->_pos_target_cm.x = xyz_table[this->_xyz_counter][0] * 100.0 + _center.x;
     this->_pos_target_cm.y = xyz_table[this->_xyz_counter][1] * 100.0 + _center.y;
-    this->_pos_target_cm.z = 10.0 * xyz_table[this->_xyz_counter][2] * 100.0;
+    this->_pos_target_cm.z = xyz_table[this->_xyz_counter][2] * 100.0;
 
     // control xy
     pos_control->set_xy_target(this->_pos_target_cm.x, this->_pos_target_cm.y);
-    pos_control->set_desired_velocity_xy(20.0, 20.0);
+    pos_control->set_desired_velocity_xy(10.0, 10.0);
     float next_yaw = get_bearing_cd(inertial_nav.get_position(), this->_pos_target_cm);
     pos_control->update_xy_controller();
     distance_cm = pos_control->get_distance_to_target();
@@ -314,18 +316,15 @@ void ModeNew::run()
     this->_pre_pos_target_cm = this->_pos_target_cm;
 
     // control z
-    // pos_control->set_alt_target_to_current_alt();
     pos_control->set_alt_target(this->_pos_target_cm.z);
-    // call attitude controller
+    pos_control->set_alt_target(this->_pos_target_cm.z);
+    pos_control->update_z_controller();
+
+    // attitude control
     attitude_control->input_euler_angle_roll_pitch_yaw(pos_control->get_roll(),
                                                        pos_control->get_pitch(),
                                                        next_yaw, true);
 
-    // pos_control->set_alt_target_to_current_alt();
-    pos_control->set_alt_target(this->_pos_target_cm.z);
-    pos_control->update_z_controller();
-
-    // attitude_control->input_euler_angle_roll_pitch_yaw(wp_nav->get_roll(), wp_nav->get_pitch(), auto_yaw.yaw(), true);
 
     this->update_xyz_counter();
 }
