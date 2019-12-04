@@ -3,14 +3,15 @@
 
 #if MODE_NEW_ENABLED == ENABLED
 
-#if 0
+#if 1
 const float xyz_table[][3] = {
     {0.0, 0.0, 5},
     {5.0, 0.0, 5.5},
-    {1.0, 0.0, 6.0},
-    {1.0, 0.5, 6.5},
-    {1.0, 1.0, 7.0},
-    {1.0, 1.5, 7.5}};
+    {10.0, 0.0, 6.0},
+    {15.0, 0.0, 6.25},
+    {15.0, 5.0, 6.5},
+    {15.0, 10.0, 7.0},
+    {15.0, 15.0, 7.5}};
 
 #else 
 const float xyz_table[][3] = {  // [m]
@@ -235,8 +236,8 @@ bool ModeNew::init(bool ignore_checks)
     pos_control->set_desired_velocity_xy(0.0f,0.0f);
 
     // initialize speeds and accelerations
-    pos_control->set_max_speed_xy(100.0);
-    pos_control->set_max_accel_xy(10.0);
+    pos_control->set_max_speed_xy(1000.0);
+    pos_control->set_max_accel_xy(100.0);
     pos_control->set_max_speed_z(-get_pilot_speed_dn(), g.pilot_speed_up);
     pos_control->set_max_accel_z(g.pilot_accel_z);
 
@@ -277,7 +278,7 @@ void ModeNew::run()
         attitude_control->input_euler_angle_roll_pitch_yaw(pos_control->get_roll(),
                                                            pos_control->get_pitch(),
                                                            next_yaw, true);
-        hal.console->printf("distance to target:%f\n", distance_cm);
+        // hal.console->printf("distance to target:%f\n", distance_cm);
         distance_cm = pos_control->get_distance_to_target();
         return;
     }
@@ -305,6 +306,7 @@ void ModeNew::run()
 
     // control xy
     pos_control->set_xy_target(this->_pos_target_cm.x, this->_pos_target_cm.y);
+    pos_control->set_desired_velocity_xy(20.0, 20.0);
     float next_yaw = get_bearing_cd(inertial_nav.get_position(), this->_pos_target_cm);
     pos_control->update_xy_controller();
     distance_cm = pos_control->get_distance_to_target();
@@ -340,7 +342,7 @@ int32_t ModeNew::wp_bearing() const
 
 void ModeNew::update_xyz_counter() {
 
-    hal.console->printf("count:%d\n", this->_xyz_counter);
+    // hal.console->printf("count:%d\n", this->_xyz_counter);
 
     uint32_t num_xyz = (sizeof(xyz_table) / sizeof(xyz_table[0][0])) / 3;
     if (this->_xyz_counter >= num_xyz - 1)  // warning: don't refer to out of array's range.
