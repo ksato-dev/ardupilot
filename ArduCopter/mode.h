@@ -1422,4 +1422,5 @@ private:
     bool pilot_yaw_override = false; // true if pilot is overriding yaw
 
     Vector3f _pos_target_cm; // position target (used by posvel controller only)
+    Vector3f _pre_pos_target_cm; // pre position target (used by posvel controller only)
 };

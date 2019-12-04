@@ -3,6 +3,16 @@
 
 #if MODE_NEW_ENABLED == ENABLED
 
+#if 0
+const float xyz_table[][3] = {
+    {0.0, 0.0, 5},
+    {5.0, 0.0, 5.5},
+    {1.0, 0.0, 6.0},
+    {1.0, 0.5, 6.5},
+    {1.0, 1.0, 7.0},
+    {1.0, 1.5, 7.5}};
+
+#else 
 const float xyz_table[][3] = {  // [m]
     {1, 0, 5},
     {0.995004165278026, 0.099833416646828, 5.1},
@@ -205,25 +215,34 @@ const float xyz_table[][3] = {  // [m]
     {0.581321811814436, 0.813673737507105, 24.8},
     {0.497185794871202, 0.867644100641669, 24.9},
     {0.408082061813392, 0.912945250727628, 25}};
+#endif
 
 static uint32_t count_val = 1;
 
 bool ModeNew::init(bool ignore_checks)
 {
-    pilot_yaw_override = false;
+    hal.console->printf("hogehoge\n");
+    // if not armed set throttle to zero and exit immediately
+    if (is_disarmed_or_landed()) {
+        make_safe_spool_down();
+        return false;
+    }
 
     pos_control->init_xy_controller();
-    pos_control->set_target_to_stopping_point_xy();
-    pos_control->set_target_to_stopping_point_z();
+    // pos_control->set_target_to_stopping_point_xy();
+    // pos_control->set_target_to_stopping_point_z();
+    pos_control->set_desired_accel_xy(0.0f,0.0f);
+    pos_control->set_desired_velocity_xy(0.0f,0.0f);
 
     // initialize speeds and accelerations
-    pos_control->set_max_speed_xy(wp_nav->get_default_speed_xy());
-    pos_control->set_max_accel_xy(wp_nav->get_wp_acceleration());
+    pos_control->set_max_speed_xy(100.0);
+    pos_control->set_max_accel_xy(10.0);
     pos_control->set_max_speed_z(-get_pilot_speed_dn(), g.pilot_speed_up);
     pos_control->set_max_accel_z(g.pilot_accel_z);
 
     // get stopping point
-    const Vector3f& stopping_point = pos_control->get_pos_target();
+    // const Vector3f& stopping_point = pos_control->get_pos_target();
+    const Vector3f& stopping_point = inertial_nav.get_position();
 
     _center.x = stopping_point.x;
     _center.y = stopping_point.y;
@@ -235,6 +254,11 @@ bool ModeNew::init(bool ignore_checks)
     // copter.circle_nav->init();
     this->_xyz_counter = 0;
 
+    this->_pos_target_cm.x = xyz_table[0][0] * 100.0 + _center.x;
+    this->_pos_target_cm.y = xyz_table[0][1] * 100.0 + _center.y;
+    this->_pos_target_cm.z = xyz_table[0][2] * 100.0 + _center.z;
+    this->_pre_pos_target_cm = _pos_target_cm;
+
     return true;
 }
 
@@ -242,6 +266,22 @@ bool ModeNew::init(bool ignore_checks)
 // should be called at 100hz or more
 void ModeNew::run()
 {
+    static float distance_cm = 0.0;
+
+    if (distance_cm >= 20.0) {
+        pos_control->set_alt_target(this->_pre_pos_target_cm.z);
+        pos_control->update_z_controller();
+        pos_control->update_xy_controller();
+
+        float next_yaw = get_bearing_cd(inertial_nav.get_position(), this->_pos_target_cm);
+        attitude_control->input_euler_angle_roll_pitch_yaw(pos_control->get_roll(),
+                                                           pos_control->get_pitch(),
+                                                           next_yaw, true);
+        hal.console->printf("distance to target:%f\n", distance_cm);
+        distance_cm = pos_control->get_distance_to_target();
+        return;
+    }
+
     // initialize speeds and accelerations
     pos_control->set_max_accel_z(g.pilot_accel_z);
 
@@ -265,8 +305,11 @@ void ModeNew::run()
 
     // control xy
     pos_control->set_xy_target(this->_pos_target_cm.x, this->_pos_target_cm.y);
-    float next_yaw = get_bearing_cd(copter.inertial_nav.get_position(), this->_pos_target_cm);
+    float next_yaw = get_bearing_cd(inertial_nav.get_position(), this->_pos_target_cm);
     pos_control->update_xy_controller();
+    distance_cm = pos_control->get_distance_to_target();
+
+    this->_pre_pos_target_cm = this->_pos_target_cm;
 
     // control z
     // pos_control->set_alt_target_to_current_alt();
