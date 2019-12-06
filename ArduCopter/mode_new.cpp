@@ -3,7 +3,7 @@
 
 #if MODE_NEW_ENABLED == ENABLED
 
-#if 1
+#if 0
 const float xyz_table[][3] = {
     {0.0, 0.0, 5},
     {5.0, 0.0, 5.5},
