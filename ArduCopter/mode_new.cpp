@@ -224,7 +224,6 @@ static uint32_t count_val = 1;
 
 bool ModeNew::init(bool ignore_checks)
 {
-    hal.console->printf("hogehoge\n");
     // if not armed set throttle to zero and exit immediately
     if (is_disarmed_or_landed()) {
         make_safe_spool_down();
@@ -232,8 +231,6 @@ bool ModeNew::init(bool ignore_checks)
     }
 
     pos_control->init_xy_controller();
-    // pos_control->set_target_to_stopping_point_xy();
-    // pos_control->set_target_to_stopping_point_z();
     pos_control->set_desired_accel_xy(0.0f,0.0f);
     pos_control->set_desired_velocity_xy(0.0f,0.0f);
 
@@ -244,7 +241,6 @@ bool ModeNew::init(bool ignore_checks)
     pos_control->set_max_accel_z(g.pilot_accel_z);
 
     // get stopping point
-    // const Vector3f& stopping_point = pos_control->get_pos_target();
     const Vector3f& stopping_point = inertial_nav.get_position();
 
     _center.x = stopping_point.x;
@@ -276,6 +272,9 @@ bool ModeNew::init(bool ignore_checks)
 // should be called at 100hz or more
 void ModeNew::run()
 {
+    if (millis() % 1000 == 0)
+        hal.console->printf("x:%f, y:%f, z:%f\n", this->_pos_target_cm.x, this->_pos_target_cm.y, this->_pos_target_cm.z);
+
     static float distance_cm = 0.0;
 
     if (distance_cm >= 20.0) {
@@ -329,16 +328,6 @@ void ModeNew::run()
 
 
     this->update_xyz_counter();
-}
-
-uint32_t ModeNew::wp_distance() const
-{
-    return copter.circle_nav->get_distance_to_target();
-}
-
-int32_t ModeNew::wp_bearing() const
-{
-    return copter.circle_nav->get_bearing_to_target();
 }
 
 void ModeNew::update_xyz_counter() {

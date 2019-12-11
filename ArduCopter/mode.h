@@ -1409,9 +1409,6 @@ protected:
     const char *name() const override { return "NEW_MODE"; }
     const char *name4() const override { return "NEW_"; }
 
-    uint32_t wp_distance() const override;
-    int32_t wp_bearing() const override;
-
 private:
     void update_xyz_counter();
 
