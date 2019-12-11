@@ -230,6 +230,7 @@ public:
     friend class ModeSystemId;
     friend class ModeThrow;
     friend class ModeZigZag;
+    friend class ModeNew;
 
     Copter(void);
 
@@ -967,6 +968,9 @@ private:
 #endif
 #if MODE_ZIGZAG_ENABLED == ENABLED
     ModeZigZag mode_zigzag;
+#endif
+#if MODE_NEW_ENABLED == ENABLED
+    ModeNew mode_new;
 #endif
 
     // mode.cpp

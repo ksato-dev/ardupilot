@@ -36,6 +36,7 @@ public:
         FOLLOW    =    23,  // follow attempts to follow another vehicle or ground station
         ZIGZAG    =    24,  // ZIGZAG mode is able to fly in a zigzag manner with predefined point A and point B
         SYSTEMID  =    25,  // System ID mode produces automated system identification signals in the controllers
+        NEW       =    26,
     };
 
     // constructor
@@ -1387,4 +1388,36 @@ private:
     } stage;
 
     uint32_t reach_wp_time_ms = 0;  // time since vehicle reached destination (or zero if not yet reached)
+};
+
+class ModeNew : public Mode {
+
+public:
+    // inherit constructor
+    using Mode::Mode;
+
+    bool init(bool ignore_checks) override;
+    void run() override;
+
+    bool requires_GPS() const override { return true; }
+    bool has_manual_throttle() const override { return false; }
+    bool allows_arming(bool from_gcs) const override { return false; };
+    bool is_autopilot() const override { return true; }
+
+protected:
+
+    const char *name() const override { return "NEW_MODE"; }
+    const char *name4() const override { return "NEW_"; }
+
+private:
+    void update_xyz_counter();
+
+    uint32_t _xyz_counter;
+    Vector3f    _center;        // center of circle in cm from home
+
+    // Circle
+    bool pilot_yaw_override = false; // true if pilot is overriding yaw
+
+    Vector3f _pos_target_cm; // position target (used by posvel controller only)
+    Vector3f _pre_pos_target_cm; // pre position target (used by posvel controller only)
 };
